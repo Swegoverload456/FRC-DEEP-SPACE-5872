@@ -25,7 +25,7 @@ public class Drive extends Subsystem {
   private static final double ticksPerRev = 4096;
   private static final double ticksPerIn = (ticksPerRev * gearRatio) / (wheelDiamterIn * Math.PI);
   private static final double encRefreshRate = 100; //in ms
-  private static final double ticksPerInOverSec = (ticksPerRev * wheelDiamterIn * Math.PI) / (encRefreshRate * 10);
+  private static final double ticksPerInOverSec = (ticksPerIn) / (encRefreshRate * 10);
   private boolean isHighGear = true;
 
   private final WPI_TalonSRX leftMaster, leftSlave, rightMaster, rightSlave;
@@ -87,8 +87,8 @@ public class Drive extends Subsystem {
   }
   public void setPos(double leftPos, double rightPos){
 
-    leftMaster.set(ControlMode.Position, leftPos);
-    rightMaster.set(ControlMode.Position, rightPos);
+    leftMaster.set(ControlMode.Position, leftPos * ticksPerIn);
+    rightMaster.set(ControlMode.Position, rightPos * ticksPerIn);
 
   }
   public void setVel(double leftVel, double rightVel){
@@ -207,26 +207,26 @@ public class Drive extends Subsystem {
 
   }
 
-  public double getLeftVelTicks(){
+  public double getLeftVelTicksPerSec(){
 
-    return leftMaster.getSelectedSensorVelocity();
-
-  }
-
-  public double getLeftVelInches(){
-
-    return leftMaster.getSelectedSensorVelocity() * (wheelDiamterIn * Math.PI);
+    return leftMaster.getSelectedSensorVelocity() * 10;
 
   }
 
-  public double getRightVelTicks(){
+  public double getLeftVelInchesPerSec(){
 
-    return rightMaster.getSelectedSensorVelocity();
+    return leftMaster.getSelectedSensorVelocity() * (wheelDiamterIn * Math.PI * 10);
 
   }
-  public double getRightVelInches(){
 
-    return rightMaster.getSelectedSensorVelocity() * (wheelDiamterIn * Math.PI);
+  public double getRightVelTicksPerSec(){
+
+    return rightMaster.getSelectedSensorVelocity() * 10;
+
+  }
+  public double getRightVelInchesPerSec(){
+
+    return rightMaster.getSelectedSensorVelocity() * (wheelDiamterIn * Math.PI * 10);
 
   }
 

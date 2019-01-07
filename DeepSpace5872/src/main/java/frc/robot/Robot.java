@@ -8,6 +8,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -61,6 +62,7 @@ public class Robot extends TimedRobot {
 
   Command m_autonomousCommand;
   SendableChooser<Command> m_chooser = new SendableChooser<>();
+  Timer timer = new Timer();
 
   /**
    * This function is run when the robot is first started up and should be
@@ -141,6 +143,15 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     Scheduler.getInstance().run();
+
+    timer.start();
+    while(((mDrive.getLeftVelInchesPerSec() + mDrive.getRightVelInchesPerSec()/2)) < 109.8){
+
+      mDrive.setVel(109.8, 109.8);
+      System.out.println("Current Vel: " + (mDrive.getLeftVelInchesPerSec() + mDrive.getRightVelInchesPerSec())/2 + "Current Accel: " + ((mDrive.getLeftVelInchesPerSec() + mDrive.getRightVelInchesPerSec())/2/timer.get()) + "Current Time: " + timer.get());
+
+    }
+
   }
 
   @Override
