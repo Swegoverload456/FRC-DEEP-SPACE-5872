@@ -23,7 +23,9 @@ public class Drive extends Subsystem {
   private static final double wheelDiamterIn = 4.0;
   private static final double gearRatio = 1.0;
   private static final double ticksPerRev = 4096;
-  private static final double ticksPerIn = (ticksPerRev * gearRatio)/(wheelDiamterIn * Math.PI);
+  private static final double ticksPerIn = (ticksPerRev * gearRatio) / (wheelDiamterIn * Math.PI);
+  private static final double encRefreshRate = 100; //in ms
+  private static final double ticksPerInOverSec = (ticksPerRev * wheelDiamterIn * Math.PI) / (encRefreshRate * 10);
   private boolean isHighGear = true;
 
   private final WPI_TalonSRX leftMaster, leftSlave, rightMaster, rightSlave;
@@ -91,8 +93,8 @@ public class Drive extends Subsystem {
   }
   public void setVel(double leftVel, double rightVel){
 
-    leftMaster.set(ControlMode.Velocity, leftVel);
-    rightMaster.set(ControlMode.Velocity, rightVel);
+    leftMaster.set(ControlMode.Velocity, leftVel * ticksPerInOverSec);
+    rightMaster.set(ControlMode.Velocity, rightVel * ticksPerInOverSec);
 
   }
 
@@ -107,6 +109,46 @@ public class Drive extends Subsystem {
 
     leftMaster.setSelectedSensorPosition(0);
     rightMaster.setSelectedSensorPosition(0);
+
+  }
+
+  public void turn(double targetAngle){
+
+    resetHeading();
+
+    //Assuming that our max turning vel is 9.15 ft/sec
+    //equation for finding this was kp(180[max error]) = 109.8 in/sec
+    double kP = 0.61;
+    double threshold = 1;
+
+    double error = targetAngle - getRelativeHeading();
+
+    while(error > threshold || error < -threshold){
+
+      setVel(kP*error, kP*error);
+
+    }
+
+    stopMotors();
+
+  }
+
+  public double getRelativeHeading(){
+
+    double angle = 0;
+
+    if(getHeading() > 180){
+
+      angle = getHeading() - 360;
+
+    }
+    else{
+
+      angle = getHeading();
+
+    }
+
+    return angle;
 
   }
 

@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Drive.Drive;
+import frc.robot.Leds.Led;
 import frc.robot.Parallelogram.Parallelogram;
 import frc.robot.Vision.Limelight;
 
@@ -33,6 +34,30 @@ public class Robot extends TimedRobot {
   public Drive mDrive;
   public Parallelogram mParallelogram;
   public Limelight mLimelight;
+  public Led mLed;
+
+  public static final double black = 0.99;
+  public static final double darkGray = 0.97;
+  public static final double gray = 0.95;
+  public static final double white = 0.93;
+  public static final double violet = 0.91;
+  public static final double blueViolet = 0.89;
+  public static final double blue = 0.87;
+  public static final double darkBlue = 0.85;
+  public static final double skyBlue = 0.83;
+  public static final double aqua = 0.81;
+  public static final double blueGreen = 0.79;
+  public static final double green = 0.77;
+  public static final double darkGreen = 0.75;
+  public static final double lime = 0.73;
+  public static final double lawnGreen = 0.71;
+  public static final double yellow = 0.69;
+  public static final double gold = 0.67;
+  public static final double orange = 0.65;
+  public static final double redOrange = 0.63;
+  public static final double red = 0.61;
+  public static final double darkRed = 0.59;
+  public static final double hotPink = 0.57;
 
   Command m_autonomousCommand;
   SendableChooser<Command> m_chooser = new SendableChooser<>();
@@ -51,6 +76,7 @@ public class Robot extends TimedRobot {
   }
 
   /**
+   * 
    * This function is called every robot packet, no matter the mode. Use
    * this for items like diagnostics that you want ran during disabled,
    * autonomous, teleoperated and test.
@@ -69,6 +95,9 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void disabledInit() {
+
+    mLed.set(gold);
+
   }
 
   @Override
@@ -90,6 +119,8 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_autonomousCommand = m_chooser.getSelected();
+
+    mLed.set(green);
 
     /*
      * String autoSelected = SmartDashboard.getString("Auto Selector",
@@ -138,4 +169,27 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {
   }
+
+  public void autoTurn(){
+
+    double threshold = 0.5;
+    while(mLimelight.getXPos() > threshold || mLimelight.getXPos() < -threshold){
+
+      mDrive.turn(mLimelight.getXPos());
+      if(mLimelight.getXPos() < threshold && mLimelight.getXPos() > -threshold){
+
+        mLed.blink(gold, 250, 5);
+
+      }
+      else{
+
+        mLed.set(red);
+
+      }
+      break;
+
+    }
+
+  }
+
 }
