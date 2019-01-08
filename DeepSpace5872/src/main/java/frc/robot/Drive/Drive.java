@@ -48,6 +48,8 @@ public class Drive extends Subsystem {
     rightMaster.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, 0, 100);
     leftMaster.setSensorPhase(Constants.kLeftDriveSensorPhase);
     rightMaster.setSensorPhase(Constants.kRightDriveSensorPhase);
+    leftMaster.setStatusFramePeriod(StatusFrameEnhanced.Status_2_Feedback0, 10);
+    rightMaster.setStatusFramePeriod(StatusFrameEnhanced.Status_2_Feedback0, 10);
 
     leftSlave.follow(leftMaster);
     rightSlave.follow(rightMaster);

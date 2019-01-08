@@ -3,6 +3,7 @@ package frc.robot.Parallelogram;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
+import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -61,6 +62,8 @@ public class Parallelogram extends Subsystem{
 
         leftMaster.setSensorPhase(Constants.kLeftPSensorPhase);
         rightMaster.setSensorPhase(Constants.kRightPSensorPhase);
+        leftMaster.setStatusFramePeriod(StatusFrameEnhanced.Status_2_Feedback0, 10);
+        rightMaster.setStatusFramePeriod(StatusFrameEnhanced.Status_2_Feedback0, 10);
 
         leftSlaveA.follow(leftMaster);
         leftSlaveB.follow(leftMaster);
