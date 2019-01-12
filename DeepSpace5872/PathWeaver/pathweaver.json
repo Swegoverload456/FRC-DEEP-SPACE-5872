@@ -1,0 +1,10 @@
+{
+  "lengthUnit": "Meter",
+  "timeStep": 0.05,
+  "maxVelocity": 5.57784,
+  "maxAcceleration": 3.0244926496892264,
+  "maxJerk": 1.0,
+  "wheelBase": 0.641858,
+  "gameName": "Destination: Deep Space",
+  "outputDir": "../src/main/java/Paths"
+}
