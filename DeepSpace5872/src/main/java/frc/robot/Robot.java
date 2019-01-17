@@ -20,6 +20,10 @@ import frc.robot.Vision.Limelight;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.*;
+import jaci.pathfinder.Pathfinder;
+import jaci.pathfinder.PathfinderFRC;
+import jaci.pathfinder.Trajectory;
+import jaci.pathfinder.followers.EncoderFollower;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -30,7 +34,7 @@ import com.ctre.phoenix.motorcontrol.can.*;
  */
 public class Robot extends TimedRobot {
   
-  public static OI m_oi;
+  public static OI mOi;
 
   public Drive mDrive;
   public Parallelogram mParallelogram;
@@ -70,7 +74,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    m_oi = new OI();
+    mOi = new OI();
     mDrive.initDefaultCommand();
     mParallelogram.initDefaultCommand();
     // chooser.addOption("My Auto", new MyAutoCommand());
@@ -172,6 +176,29 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     Scheduler.getInstance().run();
 
+    double cLeftYAxis = mOi.controller.getRawAxis(0);
+    double cRightXAxis = mOi.controller.getRawAxis(3);
+
+    if(cLeftYAxis > 0.03 || cLeftYAxis < 0.03 || cRightXAxis > 0.03 || cRightXAxis < 0.03){
+
+      if(mDrive.getShifterState()){
+
+        mDrive.setVel((((cLeftYAxis + cRightXAxis) / 2) * Constants.kHighGearVelC), (((cLeftYAxis - cRightXAxis) / 2) * Constants.kHighGearVelC));
+
+      }
+      else{
+
+        mDrive.setVel((((cLeftYAxis + cRightXAxis) / 2) * Constants.kLowGearVelC), (((cLeftYAxis - cRightXAxis) / 2) * Constants.kLowGearVelC));
+
+      }
+
+    }
+    else{
+
+      mDrive.stopMotors();
+
+    }
+
   }
 
   /**
@@ -179,6 +206,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void testPeriodic() {
+
   }
 
   public void autoTurn(){

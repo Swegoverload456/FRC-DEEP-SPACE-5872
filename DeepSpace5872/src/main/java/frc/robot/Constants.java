@@ -18,6 +18,10 @@ public class Constants{
     public static final int kShifterB = 1;
 
     public final static int kSensorUnitsPerRotation = 4096;
+
+    //Max Vel to run at during teleop in both gears
+    public static final double kHighGearVelC = 17;
+    public static final double kLowGearVelC = 4.5;
 	
 	/**
 	 * This is a property of the Pigeon IMU, and should not be changed.

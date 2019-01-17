@@ -1,6 +1,7 @@
 package frc.robot.Drive;
 
 import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.command.Subsystem;
 
@@ -10,6 +11,11 @@ import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 import com.ctre.phoenix.motorcontrol.can.*;
 import com.ctre.phoenix.sensors.PigeonIMU;
+
+import jaci.pathfinder.Pathfinder;
+import jaci.pathfinder.PathfinderFRC;
+import jaci.pathfinder.Trajectory;
+import jaci.pathfinder.followers.EncoderFollower;
 
 import frc.robot.Constants;
 
@@ -22,11 +28,17 @@ public class Drive extends Subsystem {
 
   private static final double wheelDiamterIn = 4.0;
   private static final double gearRatio = 1.0;
-  private static final double ticksPerRev = 4096;
+  private static final int ticksPerRev = 4096;
   private static final double ticksPerIn = (ticksPerRev * gearRatio) / (wheelDiamterIn * Math.PI);
   private static final double encRefreshRate = 100; //in ms
   private static final double ticksPerInOverSec = (ticksPerIn) / (encRefreshRate * 10);
+  private static final int maxVel = 17;
   private boolean isHighGear = true;
+
+  private EncoderFollower m_left_follower;
+  private EncoderFollower m_right_follower;
+
+  private Notifier m_follower_notifier;
 
   private final WPI_TalonSRX leftMaster, leftSlave, rightMaster, rightSlave;
   private final DoubleSolenoid shifter;
@@ -73,6 +85,42 @@ public class Drive extends Subsystem {
     resetEncoders();
     resetHeading();
 
+  }
+
+  public void initPath(String pathName){
+
+    Trajectory left_trajectory = PathfinderFRC.getTrajectory(pathName + ".left");
+    Trajectory right_trajectory = PathfinderFRC.getTrajectory(pathName + ".right");
+
+    m_left_follower = new EncoderFollower(left_trajectory);
+    m_right_follower = new EncoderFollower(right_trajectory);
+
+    m_left_follower.configureEncoder(leftMaster.getSelectedSensorPosition(), ticksPerRev, wheelDiamterIn);
+    // You must tune the PID values on the following line!
+    m_left_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / maxVel, 0);
+
+    m_right_follower.configureEncoder(rightMaster.getSelectedSensorPosition(), ticksPerRev, wheelDiamterIn);
+    // You must tune the PID values on the following line!
+    m_right_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / maxVel, 0);
+    
+    m_follower_notifier = new Notifier(this::followPath);
+    m_follower_notifier.startPeriodic(left_trajectory.get(0).dt);
+    
+  }
+
+  private void followPath() {
+    if (m_left_follower.isFinished() || m_right_follower.isFinished()) {
+      m_follower_notifier.stop();
+    } else {
+      double left_speed = m_left_follower.calculate(leftMaster.getSelectedSensorPosition());
+      double right_speed = m_right_follower.calculate(rightMaster.getSelectedSensorPosition());
+      double heading = pigeon.getAbsoluteCompassHeading();
+      double desired_heading = Pathfinder.r2d(m_left_follower.getHeading());
+      double heading_difference = Pathfinder.boundHalfDegrees(desired_heading - heading);
+      double turn =  0.8 * (-1.0/80.0) * heading_difference;
+      leftMaster.set(left_speed + turn);
+      rightMaster.set(right_speed - turn);
+    }
   }
 
   public void setPower(double leftPower, double rightPower){
@@ -165,11 +213,13 @@ public class Drive extends Subsystem {
     if(highGear){
 
         shifter.set(DoubleSolenoid.Value.kForward);
+        isHighGear = true;
 
     }
     else if(!highGear){
 
         shifter.set(DoubleSolenoid.Value.kReverse);
+        isHighGear = false;
 
     }
     else{

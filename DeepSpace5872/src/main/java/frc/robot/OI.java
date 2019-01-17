@@ -42,7 +42,9 @@ public class OI {
   // until it is finished as determined by it's isFinished method.
   // button.whenReleased(new ExampleCommand());
 
-  Joystick gamepad = new Joystick(0);
+  Joystick controller = new Joystick(0);
   Joystick buttonBoard = new Joystick(1);
+
+  
 
 }
