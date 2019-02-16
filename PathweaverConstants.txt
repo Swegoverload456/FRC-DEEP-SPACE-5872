@@ -1,0 +1,8 @@
+X = 54.973
+Y = 121.569
+Tangent X = 120
+
+Farthest Cargo End Pos
+X = 302.285
+Y = 120
+Tangent Y = 120
