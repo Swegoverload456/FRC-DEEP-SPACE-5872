@@ -19,6 +19,7 @@ public class Limelight{
     NetworkTableEntry ta = table.getEntry("ta");
     NetworkTableEntry tv = table.getEntry("tv");
     NetworkTableEntry tled = table.getEntry("ledMode");
+    NetworkTableEntry tCamMode = table.getEntry("stream");
 
     //read values periodically
     double x = tx.getDouble(0.0);

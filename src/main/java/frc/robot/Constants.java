@@ -3,10 +3,10 @@ package frc.robot;
 public class Constants{
 
     //Drivetrain
-    public static final int kLeftDriveMasterID = 7;
-    public static final int kLeftDriveSlaveID = 2;
-    public static final int kRightDriveMasterID = 6;
-    public static final int kRightDriveSlaveID = 10;
+    public static final int kLeftDriveMasterID = 2;
+    public static final int kLeftDriveSlaveID = 7;
+    public static final int kRightDriveMasterID = 10;
+    public static final int kRightDriveSlaveID = 6;
 
     public static final boolean kLeftDriveInv = false;
     public static final boolean kRightDriveInv = true;
@@ -27,10 +27,10 @@ public class Constants{
     public static final int kLiftReleaseLF = 7;
     public static final int kLiftReleaseLB = 6;
 
-    public static final double driveKF = 0.10969333047;
-    public static final double driveKP = 0;
+    public static final double driveKF = 0;
+    public static final double driveKP = 0.5;
     public static final double driveKI = 0;
-    public static final double driveKD = 0;
+    public static final double driveKD = 7.6;
 
     //Parallelogram
     public static final int kLeftPMasterID = 4;

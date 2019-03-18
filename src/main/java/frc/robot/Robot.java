@@ -19,9 +19,20 @@ import frc.robot.Parallelogram.Parallelogram;
 import frc.robot.Vision.Limelight;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.cscore.UsbCamera;
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
+
+import jaci.pathfinder.Pathfinder;
+import jaci.pathfinder.PathfinderFRC;
+import jaci.pathfinder.Trajectory;
+import jaci.pathfinder.followers.EncoderFollower;
+import edu.wpi.first.wpilibj.Notifier;
+
+import java.io.File;
+import java.io.IOException;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.*;
@@ -34,6 +45,11 @@ import com.ctre.phoenix.motorcontrol.can.*;
  * project.
  */
 public class Robot extends TimedRobot {
+
+  private static final int k_ticks_per_rev = 4096;
+  private static final double k_wheel_diameter = 4.0;
+  private static final double k_max_velocity = 144;
+  private static final String k_path_name = "example";
 
   public Drive mDrive;
   public Parallelogram mParallelogram;
@@ -65,8 +81,11 @@ public class Robot extends TimedRobot {
 
   public double maxVel = 0;
 
-  Command m_autonomousCommand;
-  SendableChooser<Command> m_chooser = new SendableChooser<>();
+  //CameraServer camera;
+
+  Command autoCommand;
+  SendableChooser autoChooser;
+
   Timer timer = new Timer();
 
   Joystick gamepad = new Joystick(0);
@@ -82,6 +101,11 @@ public class Robot extends TimedRobot {
   int driveToggle = 0;
   int bottomHatch = 0;
   double liftCount = 0;
+  double previousError = 0;
+
+  boolean shifterTrack = true;
+
+  boolean opC = false;
 
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
   NetworkTableEntry tx = table.getEntry("tx");
@@ -89,12 +113,17 @@ public class Robot extends TimedRobot {
   NetworkTableEntry ta = table.getEntry("ta");
   NetworkTableEntry tv = table.getEntry("tv");
   NetworkTableEntry tled = table.getEntry("ledMode");
+  NetworkTableEntry tCamMode = table.getEntry("stream");
 
   //read values periodically
   public double x = tx.getDouble(0.0);
   double y = ty.getDouble(0.0);
   double area = ta.getDouble(0.0);
   double targetPresent = tv.getDouble(0.0);
+  private EncoderFollower m_left_follower;
+  private EncoderFollower m_right_follower;
+  
+  private Notifier m_follower_notifier;
   
   /**
    * This function is run when the robot is first started up and should be
@@ -105,13 +134,26 @@ public class Robot extends TimedRobot {
     mDrive = new Drive();
     mParallelogram = new Parallelogram();
     mLimelight = new Limelight();
+
+    tCamMode.setDouble(0);
+
+    tCamMode.setDouble(2);
+
+    //mDrive.loadPath("example");
+
+    UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
+    camera.setResolution(360, 240);
+    //camera.setFPS(25);
+    
+    autoChooser = new SendableChooser();
+    //autoChooser.addDefault("Level 1 To Front Cargo: ", );
+
     //mLed = new Led();
-    mDrive.initDefaultCommand();
+    //mDrive.initDefaultCommand();
 
     c.setClosedLoopControl(true);
     //mParallelogram.initDefaultCommand();
     // chooser.addOption("My Auto", new MyAutoCommand());
-    SmartDashboard.putData("Auto mode", m_chooser);
 
   }
 
@@ -158,9 +200,41 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autonomousCommand = m_chooser.getSelected();
+    //m_autonomousCommand = m_chooser.getSelected();
+    mDrive.resetEncoders();
+    mDrive.resetHeading();
+
+    try{
+      Trajectory left_trajectory = PathfinderFRC.getTrajectory(k_path_name + ".left");
+      Trajectory right_trajectory = PathfinderFRC.getTrajectory(k_path_name + ".right");
+
+      m_left_follower = new EncoderFollower(left_trajectory);
+      m_right_follower = new EncoderFollower(right_trajectory);
+
+      m_left_follower.configureEncoder(mDrive.getLeftTicks(), 4096, 4);
+      // You must tune the PID values on the following line!
+      m_left_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / 144, 0);
+
+      m_right_follower.configureEncoder(mDrive.getRightTicks(), 4096, 4);
+      // You must tune the PID values on the following line!
+      m_right_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / 144, 0);
+      
+      m_follower_notifier = new Notifier(this::followPath);
+      m_follower_notifier.startPeriodic(left_trajectory.get(0).dt);
+    }
+    catch(IOException e){
+
+      e.printStackTrace();
+
+    }
+
+    //mDrive.autoInit();
+
+    //mDrive.autoInit();
 
    // mLed.set(green);
+
+   //mDrive.autoInit();
 
     /*
      * String autoSelected = SmartDashboard.getString("Auto Selector",
@@ -170,10 +244,28 @@ public class Robot extends TimedRobot {
      */
 
     // schedule the autonomous command (example)
-    if (m_autonomousCommand != null) {
+    /*if (m_autonomousCommand != null) {
       m_autonomousCommand.start();
+
+
+    }*/
+  }
+
+  private void followPath() {
+    if (m_left_follower.isFinished() || m_right_follower.isFinished()) {
+      m_follower_notifier.stop();
+    } else {
+      double left_speed = m_left_follower.calculate(mDrive.getLeftTicks());
+      double right_speed = m_right_follower.calculate(mDrive.getRightTicks());
+      //double heading = mDrive.getHeading();
+      //double desired_heading = Pathfinder.r2d(m_left_follower.getHeading());
+      //double heading_difference = Pathfinder.boundHalfDegrees(desired_heading - heading);
+      //double turn =  0.8 * (-1.0/80.0) * heading_difference;
+      mDrive.leftMaster.set(left_speed);
+      mDrive.rightMaster.set(right_speed);
     }
   }
+
 
   /**
    * This function is called periodically during autonomous.
@@ -181,6 +273,90 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     Scheduler.getInstance().run();
+
+
+    //mDrive.followPath();
+
+    //followPath();
+    //delay(10000);
+    /*double kP = 0.0434782609;
+    mDrive.resetHeading();
+    delay(150);
+
+    mDrive.setPos(55, 55);
+    mParallelogram.setPower(-0.3, -0.3);
+    mParallelogram.dropRoller(false);
+    mParallelogram.dropHatch(false);
+    mParallelogram.openClaw(false);
+    delay(2500);
+    mParallelogram.setPower(0.0, 0.0);
+    mDrive.resetEncoders();
+    delay(150);
+    mDrive.setPos(-20, 20);
+    mParallelogram.setPower(-0.3, -0.3);
+    delay(1700);
+    mParallelogram.setPower(0.0, 0.0);
+    mDrive.resetEncoders();
+    delay(150);
+    mDrive.setPos(68, 68);
+    mParallelogram.setPower(-0.3, -0.3);
+    delay(2500);
+    mDrive.resetEncoders();
+    delay(100);
+    mDrive.setPos(8.5, -8.5);
+    mParallelogram.dropRoller(true);
+    mParallelogram.dropHatch(true);
+    delay(1000);
+    mDrive.resetEncoders();
+    delay(150);
+    while(tx.getDouble(0.0) < -1 || tx.getDouble(0.0) > 1){
+      if(tx.getDouble(0.0) < -1){
+
+        mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
+
+      }
+      else if(tx.getDouble(0.0) > 1){
+
+        mDrive.setPower(-(kP * tx.getDouble(0.0)), ((kP * tx.getDouble(0.0))));
+
+      }
+    }
+    delay(2500);
+    mDrive.setPower(0.2, 0.2);
+    delay(1000);
+    mDrive.setPower(0, 0);
+    delay(15000);      
+
+    /*mParallelogram.dropRoller(true);
+    mParallelogram.dropHatch(true);
+    mParallelogram.openClaw(false);
+    mParallelogram.setPos(1150000);
+    while(ta.getDouble(0.0) < 1.25){
+
+      mDrive.driveStraight(0.2);
+
+    }
+    mDrive.setPower(0, 0);
+    delay(500);
+    while(tx.getDouble(0.0) < -1 || tx.getDouble(0.0) > 1){
+      if(tx.getDouble(0.0) < -1){
+
+        mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
+
+      }
+      else if(tx.getDouble(0.0) > 1){
+
+        mDrive.setPower(-(kP * tx.getDouble(0.0)), ((kP * tx.getDouble(0.0))));
+
+      }
+    }
+    delay(1500);
+    mDrive.driveStraight(0.2);
+    delay(800);
+    mParallelogram.openClaw(true);
+    delay(15000);*/
+
+
 
     /*timer.start();
     while(((mDrive.getLeftVelInchesPerSec() + mDrive.getRightVelInchesPerSec()/2)) < 109.8){
@@ -190,7 +366,7 @@ public class Robot extends TimedRobot {
 
     }*/
 
-    mParallelogram.setMotionMagic(50000);
+    //mParallelogram.setMotionMagic(50000);
 
   }
 
@@ -200,9 +376,12 @@ public class Robot extends TimedRobot {
     // teleop starts running. If you want the autonomous to
     // continue until interrupted by another command, remove
     // this line or comment it out.
-    if (m_autonomousCommand != null) {
+    /*if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
-    }
+    }*/
+
+    timer.start();
+
   }
 
   /**
@@ -213,15 +392,15 @@ public class Robot extends TimedRobot {
         Scheduler.getInstance().run();
 
         double leftY = -gamepad.getRawAxis(1);
-        double rightX = gamepad.getRawAxis(4) * .75;
-        double leftTrigger = gamepad.getRawAxis(2);
-        double rightTrigger = gamepad.getRawAxis(3);
+        double rightX = gamepad.getRawAxis(5) * .75;
+        double leftTrigger = gamepad.getRawAxis(3);
+        double rightTrigger = gamepad.getRawAxis(4);
         double fLeftY = -flightStick.getRawAxis(1);
-        boolean aButton = gamepad.getRawButton(1);
-        boolean bButton = gamepad.getRawButton(2);
-        boolean xButton = gamepad.getRawButton(3);
+        boolean aButton = gamepad.getRawButton(2);
+        boolean bButton = gamepad.getRawButton(3);
+        boolean xButton = gamepad.getRawButton(1);
         boolean yButton = gamepad.getRawButton(4);
-        boolean leftBumper = gamepad.getRawButton(5);
+        boolean zButton = gamepad.getRawButton(8);
         boolean red1 = buttonBoard.getRawButton(8);
         boolean red2 = buttonBoard.getRawButton(6);
         boolean pink = buttonBoard.getRawButton(1);
@@ -232,6 +411,9 @@ public class Robot extends TimedRobot {
         boolean blue2 = buttonBoard.getRawButton(2);
 
         double kP = 0.0434782609;
+        double kD = 0.434782609;
+        double error = tx.getDouble(0);
+        //double derivative = (error - previousError) / 11.11111111111111;
 
         //85% of MAX Speed of both gears in ft/s. This was done to account for voltage differences so we can drive straight.
         double joyToVelHigh = 15.555;
@@ -240,143 +422,188 @@ public class Robot extends TimedRobot {
         double targetVel = leftY * joyToVelHigh;
         double targetTicksPer100ms = targetVel * 12 / 10 * 325.9493235;
 
+        if(timer.get() > 11.111111111111){
+
+          previousError = error;
+          timer.reset();
+          timer.start();
+
+        }
+
         if(xButton && driveToggle == 0){
 
-        driveToggle = 1;
+          driveToggle = 1;
 
         }
         else if(!xButton && driveToggle == 1){
 
-        mDrive.setShifterState(true);
-        driveToggle = 2;
+          mDrive.setShifterState(true);
+          driveToggle = 2;
 
         }
         else if(xButton && driveToggle == 2){
 
-        driveToggle = 3;
+          driveToggle = 3;
 
         }
         else if(!xButton && driveToggle == 3){
 
-        mDrive.setShifterState(false);
-        driveToggle = 0;
+          mDrive.setShifterState(false);
+          driveToggle = 0;
 
         }
 
-        if(yButton && liftToggle == 0){
+        if(!mParallelogram.getBottomHSR()){
 
-        liftToggle = 1;
-
-        }
-        else if(!yButton && liftToggle == 1){
-
-        mDrive.engageLift(true);
-        mDrive.releaseLift(true);
-        liftToggle = 2;
-
-        }
-        else if(yButton && liftToggle == 2){
-
-        liftToggle = 3;
-
-        }
-        else if(!yButton && liftToggle == 3){
-
-        mDrive.engageLift(false);
-        mDrive.releaseLift(false);
-        liftToggle = 0;
-
-        }
-
-        if(mParallelogram.getBottomHSL() && mParallelogram.getBottomHSR()){
-
-        mParallelogram.resetEncoders();
+          mParallelogram.resetEncoders();
 
         }
 
         if(blue1 && clawToggle == 0){
 
-        clawToggle = 1;
+          clawToggle = 1;
 
         }
         else if(!blue1 && clawToggle == 1){
 
-        mParallelogram.openClaw(true);
-        clawToggle = 2;
+          mParallelogram.openClaw(true);
+          opC = true;
+          clawToggle = 2;
 
         }
         else if(blue1 && clawToggle == 2){
 
-        clawToggle = 3;
+          clawToggle = 3;
 
         }
         else if(!blue1 && clawToggle == 3){
 
-        mParallelogram.openClaw(false);
-        clawToggle = 0;
+          mParallelogram.openClaw(false);
+          opC = false;
+          clawToggle = 0;
 
         }
 
         if(blue2 && hatchToggle == 0){
 
-        hatchToggle = 1;
+          hatchToggle = 1;
 
         }
         else if(!blue2 && hatchToggle == 1){
 
-        mParallelogram.dropRoller(true);
-        mParallelogram.dropHatch(true);
-        hatchToggle = 2;
+          mParallelogram.dropRoller(true);
+          mParallelogram.dropHatch(true);
+          hatchToggle = 2;
 
         }
         else if(blue2 && hatchToggle == 2){
 
-        hatchToggle = 3;
+          hatchToggle = 3;
 
         }
         else if(!blue2 && hatchToggle == 3){
 
-        mParallelogram.dropHatch(false);
-        mParallelogram.dropRoller(false);
-        hatchToggle = 0;
+          mParallelogram.dropHatch(false);
+          mParallelogram.dropRoller(false);
+          hatchToggle = 0;
 
         }
 
-        if(leftBumper){
+        if(zButton){
+            
+            if(tx.getDouble(0.0) < -1){
 
-        if(tx.getDouble(0.0) < -1){
+              if(mDrive.getShifterState()){
 
-            mDrive.setPower((kP * tx.getDouble(0.0)), -(kP * tx.getDouble(0.0)));
+                shifterTrack = true;
+                mDrive.setShifterState(true);
+                mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
 
-        }
-        else if(tx.getDouble(0.0) > 1){
+              }
+              else if(!mDrive.getShifterState()){
 
-            mDrive.setPower((kP * tx.getDouble(0.0)), -(kP * tx.getDouble(0.0)));
+                shifterTrack = false;
+                mDrive.setShifterState(true);
+                mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
+    
+              }
 
-        }
-        else{
+            }
+            else if(tx.getDouble(0.0) > 1){
 
-            mDrive.setPower(0, 0);
+              if(mDrive.getShifterState()){
 
-        }
+                shifterTrack = true;
+                mDrive.setShifterState(true);
+                mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
 
-        }
-        else{
+              }
+              else if(!mDrive.getShifterState()){
 
-            if(leftY < 0.02){
-
-            mDrive.setPower((leftY + rightX), (leftY - rightX));
+                shifterTrack = false;
+                mDrive.setShifterState(true);
+                mDrive.setPower((kP * tx.getDouble(0.0)), -((kP * tx.getDouble(0.0))));
+    
+              }
 
             }
             else{
 
-            mDrive.setPower((leftY * 0.4 + rightX), (leftY * 0.4 - rightX));
+              if(shifterTrack){
+
+                mDrive.setShifterState(false);
+                mDrive.setPower(0, 0);
+
+              }
+              else{
+
+                mDrive.setPower(0, 0);
+
+              }
+
+          }
+
+        }
+        else{
+
+            if(rightX > 0.1 || rightX < -0.1){
+
+              mDrive.setShifterState(true);
+              mDrive.setPower((leftY + rightX), (leftY - rightX));
+
+            }
+            else{
+              
+              if(xButton && driveToggle == 0){
+
+                driveToggle = 1;
+
+              }
+              else if(!xButton && driveToggle == 1){
+
+                mDrive.setShifterState(true);
+                driveToggle = 2;
+
+              }
+              else if(xButton && driveToggle == 2){
+
+                driveToggle = 3;
+
+              }
+              else if(!xButton && driveToggle == 3){
+
+                mDrive.setShifterState(false);
+                driveToggle = 0;
+
+              }
+            
+              mDrive.setPower((leftY + rightX), (leftY - rightX));
 
             }  
 
         }
 
-        if(!mParallelogram.getTopHSL() || !mParallelogram.getTopHSR()){
+        //if(!mParallelogram.getTopHSL() || !mParallelogram.getTopHSR()){
 
         if(yellow1){
 
@@ -385,27 +612,27 @@ public class Robot extends TimedRobot {
         }
         else if(yellow2){
 
-            mParallelogram.setPos(675000);
+            mParallelogram.setPos(600000);
 
         }
         else if(pink){
 
-            mParallelogram.setPos(900000);
+            mParallelogram.setPos(1100000);
 
         }
         else if(green){
 
-            mParallelogram.setPos(920000);
+            mParallelogram.setPos(950000);
 
         }
         else if(red2){
 
-            mParallelogram.setPos(700000);
+            mParallelogram.setPos(900000);
 
         }
         else if(red1){
 
-            mParallelogram.setPos(110000);
+            mParallelogram.setPos(400000);
 
         }
         else if(fLeftY > 0.25 || fLeftY < -0.25){
@@ -415,86 +642,75 @@ public class Robot extends TimedRobot {
         }
         else{
 
-            if(!mParallelogram.getBottomHSL()){
+          if(!mParallelogram.getBottomHSR()){
 
-            mParallelogram.setLeftPower(-0.25);
+            mParallelogram.setPower(0, 0);
 
-            }
-            else{
+          }
+          else{
 
-            mParallelogram.setLeftPower(0);
+            mParallelogram.setPower(-0.3, -0.3);
 
-            }
-
-            if(!mParallelogram.getBottomHSR()){
-
-            mParallelogram.setRightPower(-0.25);
-
-            }
-            else{
-
-            mParallelogram.setRightPower(0);
-
-            }
+          }
 
         }
 
         if(aButton && intakeToggle == 0){
 
-        intakeToggle = 1;
+          intakeToggle = 1;
 
         }
         else if(!aButton && intakeToggle == 1){
 
-        mParallelogram.dropRoller(true);
-        mParallelogram.setRoller(1.0);
-        mParallelogram.setIntake(1.0);
-        intakeToggle = 2;
+          mParallelogram.dropRoller(true);
+          mParallelogram.setRoller(0.5);
+          mParallelogram.setIntake(0.5);
+          intakeToggle = 2;
 
         }
         else if(aButton && intakeToggle == 2){
 
-        intakeToggle = 3;
+          intakeToggle = 3;
 
         }
         else if(!aButton && intakeToggle == 3){
 
-        mParallelogram.dropRoller(false);
-        mParallelogram.stopRoller();
-        mParallelogram.stopIntake();
-        intakeToggle = 0;
+          mParallelogram.dropRoller(false);
+          mParallelogram.dropHatch(false);
+          mParallelogram.stopRoller();
+          mParallelogram.stopIntake();
+          intakeToggle = 0;
 
         }
 
         if(bButton && outtakeToggle == 0){
 
-        outtakeToggle = 1;
+          outtakeToggle = 1;
 
         }
         else if(!bButton && outtakeToggle == 1){
 
-        mParallelogram.pushBall(true);
-        mParallelogram.setIntake(-0.75);
-
-        outtakeToggle = 2;
+          mParallelogram.pushBall(true);
+          mParallelogram.setIntake(-0.25);
+          outtakeToggle = 2;
 
         }
         else if(bButton && outtakeToggle == 2){
 
-        outtakeToggle = 3;
+          outtakeToggle = 3;
 
         }
         else if(!bButton && outtakeToggle == 3){
 
-        mParallelogram.pushBall(false);
-        mParallelogram.stopIntake();
-        outtakeToggle = 0;
+          mParallelogram.pushBall(false);
+          mParallelogram.stopIntake();
+          outtakeToggle = 0;
 
         }
 
         if((mParallelogram.getLeftTicksPer100ms() + mParallelogram.getRightTicksPer100ms()) / 2 < maxVel){
 
-        maxVel = (mParallelogram.getLeftTicksPer100ms() + mParallelogram.getRightTicksPer100ms()) / 2;
+          maxVel = (mParallelogram.getLeftTicksPer100ms() + mParallelogram.getRightTicksPer100ms()) / 2;
 
         }
 
@@ -505,14 +721,17 @@ public class Robot extends TimedRobot {
         SmartDashboard.putNumber("Target Vel: ", targetTicksPer100ms);
         SmartDashboard.putNumber("LeftLift: ", mParallelogram.getLeftTicks());
         SmartDashboard.putNumber("RightLift: ", mParallelogram.getRightTicks());
-        SmartDashboard.putNumber("Left Enc: ", (mDrive.getLeftVelInchesPerSec()));
-        SmartDashboard.putNumber("Right Enc: ", (mDrive.getRightVelInchesPerSec()));
+        SmartDashboard.putNumber("Left Enc: ", (mDrive.getLeftInches()));
+        SmartDashboard.putNumber("Right Enc: ", (mDrive.getRightInches()));
         SmartDashboard.putNumber("Vision X: ", tx.getDouble(0.0));
         SmartDashboard.putNumber("Motor Power: ", mParallelogram.getMotorPower());
         SmartDashboard.putNumber("Lift Count: ", liftCount);
-
-    }
-
+        SmartDashboard.putBoolean("Left Bottom: ", mParallelogram.getBottomHSL());
+        SmartDashboard.putBoolean("Right Bottom: ", mParallelogram.getBottomHSR());
+        SmartDashboard.putNumber("Area: ", ta.getDouble(0));
+        SmartDashboard.putNumber("Heading: ", mDrive.getHeading());
+        SmartDashboard.putBoolean("Claw: ", opC);
+    
   } 
 
   /**
@@ -526,26 +745,16 @@ public class Robot extends TimedRobot {
 
   }
 
- /* public void autoTurn(){
+  public void delay(int ms){
 
-    double threshold = 0.5;
-    while(mLimelight.getXPos() > threshold || mLimelight.getXPos() < -threshold){
+    try{
+    		Thread.sleep(ms);
+    	}
+    	catch(Exception e1){
+    		e1.printStackTrace();
+    	}
 
-      mDrive.turn(mLimelight.getXPos());
-      if(mLimelight.getXPos() < threshold && mLimelight.getXPos() > -threshold){
+  }
 
-        mLed.blink(gold, 250, 5);
-
-      }
-      else{
-
-        mLed.set(red);
-
-      }
-      break;
-
-    }
-
-  }*/
 }
 

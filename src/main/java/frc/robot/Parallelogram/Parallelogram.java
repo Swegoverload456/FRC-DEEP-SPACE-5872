@@ -60,7 +60,7 @@ public class Parallelogram extends Subsystem{
         intakeL.setInverted(Constants.kIntakeLInv);
         intakeR.setInverted(Constants.kIntakeRInv);
 
-        rollerDrop = new DoubleSolenoid(0, 1);
+        rollerDrop = new DoubleSolenoid(0, 0, 1);
         hatchGrab = new DoubleSolenoid(2, 5, 1);
         hatchDrop = new DoubleSolenoid(2, 6, 2);
         ballPusher = new DoubleSolenoid(2, 4, 0);
