@@ -45,11 +45,6 @@ public class Drive extends Subsystem {
   private final double maxVel = 144;
   double [] xyz_dps = new double[3];
 
-  private static final String pathName = "example";
-
-  private EncoderFollower m_left_follower;
-  private EncoderFollower m_right_follower;
-
   Trajectory leftTrajectory;
   Trajectory rightTrajectory;
   
@@ -57,8 +52,6 @@ public class Drive extends Subsystem {
   File rightCSV;
 
   double dt;
-
-  private Notifier m_follower_notifier;
 
   public final WPI_TalonSRX leftMaster, leftSlave, rightMaster, rightSlave;
   private final DoubleSolenoid shifterL, shifterR, shifterLiftL, shifterLiftR, liftReleaseL, liftReleaseR;
@@ -100,24 +93,6 @@ public class Drive extends Subsystem {
     leftSlave.configPeakOutputReverse(-1, 100);
     rightSlave.configPeakOutputReverse(-1, 100);
 
-    /*leftMaster.config_kF(0, Constants.driveKF, 30);
-    rightMaster.config_kF(0, Constants.driveKF, 30);
-    leftMaster.config_kP(0, Constants.driveKP, 30);
-    rightMaster.config_kP(0, Constants.driveKP, 30);
-    leftMaster.config_kI(0, Constants.driveKI, 30);
-    rightMaster.config_kI(0, Constants.driveKI, 30);
-    leftMaster.config_kD(0, Constants.driveKD, 30);
-    rightMaster.config_kD(0, Constants.driveKD, 30);*/
-
-    //rightMaster.config_IntegralZone(0, 300, 30);
-		//rightMaster.configClosedLoopPeakOutput(0, 0.75, 30);
-		//rightMaster.configAllowableClosedloopError(0, 0, 30);
-
-    //leftMaster.configClosedLoopPeriod(0, 1, 30);
-		//leftMaster.configClosedLoopPeriod(1, 1, 30);
-    //rightMaster.configClosedLoopPeriod(0, 1, 30);
-		//rightMaster.configClosedLoopPeriod(1, 1, 30);
-
     shifterL = new DoubleSolenoid(1, 0, 7);
     shifterR = new DoubleSolenoid(2, 7, 3);
     shifterLiftL = new DoubleSolenoid(1, 1, 6);
@@ -129,80 +104,11 @@ public class Drive extends Subsystem {
     pigeon.setFusedHeading(0.0, 30);
     leftSlave.setStatusFramePeriod(StatusFrameEnhanced.Status_11_UartGadgeteer, 10, 10);
 
-    //RemoteSensorSource senSource = RemoteSensorSource.Pigeon_Yaw;
-
   }
-
-  /*public static File getTrajectoryFile(String name) {
-
-    return new File(Filesystem.getDeployDirectory(),  name + ".pf1.csv");
-  
-  }
-
-  public static Trajectory getTrajectory(String name) throws IOException{
-
-    return Pathfinder.readFromCSV(getTrajectoryFile(name));
-
-  }
-
-  public void loadPath(String pathName) throws IOException{
-
-    try{
-
-    leftCSV = new File("/home/lvuser/deploy/output/" + pathName + ".left.pf1.csv");
-    rightCSV = new File("/home/lvuser/deploy/output/" + pathName + ".right.pf1.csv");
-    leftTrajectory = getTrajectory(pathName + ".right");
-    rightTrajectory = getTrajectory(pathName + ".left");
-
-      dt = leftTrajectory.get(0).dt;
-
-    }
-    catch(IOException e){
-
-      e.printStackTrace();
-
-    }
-      //System.out.println("CSV has been locked and loaded");
-
-  }
-
-  public void autoInit(){
-
-    m_left_follower = new EncoderFollower(leftTrajectory);
-    m_right_follower = new EncoderFollower(rightTrajectory);
-
-    m_left_follower.configureEncoder(getLeftTicks(), 4096, 4);
-    // You must tune the PID values on the following line!
-    m_left_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / maxVel, 0);
-
-    m_right_follower.configureEncoder(getRightTicks(), 4096, 4);
-    // You must tune the PID values on the following line!
-    m_right_follower.configurePIDVA(1.0, 0.0, 0.0, 1 / maxVel, 0);
-    
-    m_follower_notifier = new Notifier(this::followPath);
-    m_follower_notifier.startPeriodic(leftTrajectory.get(0).dt);
-
-  }
-
-  public void followPath() {
-    if (m_left_follower.isFinished() || m_right_follower.isFinished()) {
-      m_follower_notifier.stop();
-    } else {
-      double left_speed = m_left_follower.calculate(getLeftTicks());
-      double right_speed = m_right_follower.calculate(getRightTicks());
-      //double heading = getHeading();
-      //double desired_heading = Pathfinder.r2d(m_left_follower.getHeading());
-        //double heading_difference = Pathfinder.boundHalfDegrees(desired_heading - heading);
-      //double turn =  0.8 * (-1.0/80.0) * heading_difference;
-      leftMaster.set(left_speed);
-      rightMaster.set(right_speed);
-    }
-  }*/
 
   @Override
   public void initDefaultCommand() {
-    // Set the default command for a subsystem here.
-    // setDefaultCommand(new MySpecialCommand());
+
     resetEncoders();
     resetHeading();
     shifterL.set(DoubleSolenoid.Value.kReverse);

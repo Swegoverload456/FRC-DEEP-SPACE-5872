@@ -12,24 +12,6 @@ import frc.robot.Constants;
 
 public class Parallelogram extends Subsystem{
 
-    //Cargo Positions in motor ticks ****CURRENTLY DUMMY VALUES UNTIL WE GET THE ROBOT TO TEST****
-    private static final double bCargoFirstHeight = 1.0;
-    private static final double bCargoSecondHeight = 2.0;
-    private static final double bCargoThirdHeight = 3.0;
-
-    private static final double fCargoFirstHeight = -3.0;
-    private static final double fCargoSecondHeight = -2.0;
-    private static final double fCargoThirdHeight = -1.0;
-
-    //Hatch Postions in motor ticks ****CURRENTLY DUMMY VALUES UNTIL WE GET THE ROBOT TO TEST****
-    private static final double bHatchFirstHeight = 0.5;
-    private static final double bHatchSecondHeight = 1.5;
-    private static final double bHatchThirdHeight = 2.5;
-
-    private static final double fHatchFirstHeight = -2.5;
-    private static final double fHatchSecondHeight = -1.5;
-    private static final double fHatchThirdHeight = -0.5;
-
     private static final double zeroingSpeed = 0.3;
 
     private WPI_TalonSRX leftMaster, leftSlave, rightMaster, rightSlave, roller, intakeL, intakeR;
@@ -37,8 +19,6 @@ public class Parallelogram extends Subsystem{
     private DoubleSolenoid rollerDrop, hatchDrop, hatchGrab, ballPusher;
 
     private DigitalInput bottomHardstopL, bottomHardstopR, topHardstopL, topHardstopR;
-
-    private boolean lastHsWasBottom = true;
 
 
     public Parallelogram(){
@@ -91,20 +71,6 @@ public class Parallelogram extends Subsystem{
         bottomHardstopR = new DigitalInput(Constants.kBottomHardstopRID);
         topHardstopL = new DigitalInput(Constants.kTopHardstopLID);
         topHardstopR = new DigitalInput(Constants.kTopHardstopRID);
-
-        /*leftMaster.config_kF(0, Constants.kParalleogramF, 30);
-        leftMaster.config_kP(0, Constants.kParalleogramP, 30);
-        leftMaster.config_kI(0, Constants.kParalleogramI, 30);
-        leftMaster.config_kD(0, Constants.kParalleogramD, 30);
-        leftMaster.configMotionCruiseVelocity(Constants.kParalleogramMaxVel, 30);
-        leftMaster.configMotionCruiseAcceleration(Constants.kParalleogramMaxAccel, 30);
-
-        rightMaster.config_kF(0, Constants.kParalleogramF, 30);
-        rightMaster.config_kP(0, Constants.kParalleogramP, 30);
-        rightMaster.config_kI(0, Constants.kParalleogramI, 30);
-        rightMaster.config_kD(0, Constants.kParalleogramD, 30);
-        rightMaster.configMotionCruiseVelocity(Constants.kParalleogramMaxVel, 30);
-        rightMaster.configMotionCruiseAcceleration(Constants.kParalleogramMaxAccel, 30);*/
 
     }
 
@@ -253,14 +219,8 @@ public class Parallelogram extends Subsystem{
 
     public void setMotionMagic(double TargetPos){
 
-       // while(!getBottomHS() && !getTopHS()){
-
-            leftMaster.set(ControlMode.MotionMagic, TargetPos);
-            rightMaster.set(ControlMode.MotionMagic, TargetPos);
-
-        //}
-        //leftMaster.set(0);
-        //rightMaster.set(0);
+        leftMaster.set(ControlMode.MotionMagic, TargetPos);
+        rightMaster.set(ControlMode.MotionMagic, TargetPos);
 
     }
 

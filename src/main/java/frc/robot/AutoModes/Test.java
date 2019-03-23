@@ -8,12 +8,25 @@
 package frc.robot.AutoModes;
 
 import edu.wpi.first.wpilibj.command.CommandGroup;
+import frc.robot.AutoModes.Commands.DropHatch;
+import frc.robot.AutoModes.Commands.MotionProfileCommand;
+import frc.robot.AutoModes.Commands.RaiseParallelogram;
+import frc.robot.AutoModes.Commands.OpenHatch;
 
 public class Test extends CommandGroup {
   /**
    * Add your docs here.
    */
+
   public Test() {
+
+    addSequential(new OpenHatch(true));
+    addParallel(new RaiseParallelogram(90000));
+    addSequential(new MotionProfileCommand("Test"));
+    addParallel(new DropHatch(true));
+    addSequential(new OpenHatch(false));
+    
+
     // Add Commands here:
     // e.g. addSequential(new Command1());
     // addSequential(new Command2());
